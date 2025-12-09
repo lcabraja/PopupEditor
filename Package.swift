@@ -14,12 +14,6 @@ let package = Package(
             name: "PopupEditor",
             resources: [
                 .copy("Resources")
-            ],
-            linkerSettings: [
-                .unsafeFlags([
-                    "-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist",
-                    "-Xlinker", "Sources/PopupEditor/Info.plist",
-                ])
             ]
         )
     ]
