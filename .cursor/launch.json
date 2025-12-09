@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:2025-12-09-monaco}",
+            "name": "Debug PopupEditor",
+            "program": "${workspaceFolder:2025-12-09-monaco}/.build/debug/PopupEditor",
+            "preLaunchTask": "swift: Build Debug PopupEditor"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:2025-12-09-monaco}",
+            "name": "Release PopupEditor",
+            "program": "${workspaceFolder:2025-12-09-monaco}/.build/release/PopupEditor",
+            "preLaunchTask": "swift: Build Release PopupEditor"
+        }
+    ]
+}

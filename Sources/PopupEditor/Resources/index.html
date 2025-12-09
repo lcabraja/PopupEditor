@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Popup Monaco Editor</title>
+    <style>
+        html,
+        body,
+        #container {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background: transparent;
+        }
+
+        #container {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        /* Language selector overlay */
+        #lang-selector {
+            display: none;
+            position: fixed;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            max-height: 350px;
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid #444;
+            border-radius: 6px;
+            z-index: 9999;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        
+        #lang-search {
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            border-bottom: 1px solid #444;
+            background: transparent;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        
+        #lang-list {
+            max-height: 280px;
+            overflow-y: auto;
+            margin: 0;
+            padding: 4px 0;
+            list-style: none;
+        }
+        
+        #lang-list li {
+            padding: 8px 16px;
+            cursor: pointer;
+            color: #ccc;
+            font-size: 13px;
+        }
+        
+        #lang-list li:hover,
+        #lang-list li.selected {
+            background: rgba(0, 122, 204, 0.6);
+            color: #fff;
+        }
+        
+        #lang-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #lang-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        #lang-list::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.0/min/vs/loader.min.js"></script>
+    <script>
+        require.config({
+            paths: {
+                'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.0/min/vs'
+            }
+        });
+
+        require(['vs/editor/editor.main'], function () {
+            // Define a transparent theme
+            monaco.editor.defineTheme('transparent-dark', {
+                base: 'vs-dark',
+                inherit: true,
+                rules: [],
+                colors: {
+                    'editor.background': '#00000080', // Transparent background (0x80 alpha = 50% opacity)
+                }
+            });
+
+            const editor = monaco.editor.create(document.getElementById('container'), {
+                value: '', // Will be set by Swift
+                language: 'markdown', // Defaulting to markdown for general text
+                theme: 'transparent-dark',
+                automaticLayout: true,
+                minimap: { enabled: false }, // Cleaner look for small window
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                contextmenu: true
+            });
+
+            // Get all available languages
+            const languages = monaco.languages.getLanguages().map(l => ({
+                id: l.id,
+                aliases: l.aliases || []
+            })).sort((a, b) => a.id.localeCompare(b.id));
+
+            // Expose function to Swift
+            window.setEditorValue = function (text, moveCursorToEnd) {
+                editor.setValue(text);
+                if (moveCursorToEnd) {
+                    const lineCount = editor.getModel().getLineCount();
+                    const lastLine = editor.getModel().getLineContent(lineCount);
+                    editor.setPosition({ lineNumber: lineCount, column: lastLine.length + 1 });
+                    editor.revealLineInCenter(lineCount);
+                }
+            };
+
+            window.setLanguage = function (lang) {
+                monaco.editor.setModelLanguage(editor.getModel(), lang);
+            };
+            
+            window.clearEditor = function () {
+                editor.setValue('');
+            };
+            
+            window.getEditorValue = function () {
+                return editor.getValue();
+            };
+            
+            // Language selector
+            let selectedIndex = 0;
+            let filteredLanguages = languages;
+            
+            window.showLanguageSelector = function () {
+                const selector = document.getElementById('lang-selector');
+                const searchInput = document.getElementById('lang-search');
+                const langList = document.getElementById('lang-list');
+                
+                selector.style.display = 'block';
+                searchInput.value = '';
+                selectedIndex = 0;
+                filteredLanguages = languages;
+                renderLanguageList();
+                searchInput.focus();
+            };
+            
+            function hideLanguageSelector() {
+                document.getElementById('lang-selector').style.display = 'none';
+                editor.focus();
+            }
+            
+            function renderLanguageList() {
+                const langList = document.getElementById('lang-list');
+                langList.innerHTML = '';
+                filteredLanguages.forEach((lang, idx) => {
+                    const li = document.createElement('li');
+                    li.textContent = lang.id + (lang.aliases.length ? ` (${lang.aliases[0]})` : '');
+                    li.dataset.langId = lang.id;
+                    if (idx === selectedIndex) li.classList.add('selected');
+                    li.addEventListener('click', () => selectLanguage(lang.id));
+                    langList.appendChild(li);
+                });
+                // Scroll selected into view
+                const selected = langList.querySelector('.selected');
+                if (selected) selected.scrollIntoView({ block: 'nearest' });
+            }
+            
+            function selectLanguage(langId) {
+                monaco.editor.setModelLanguage(editor.getModel(), langId);
+                hideLanguageSelector();
+            }
+            
+            document.getElementById('lang-search').addEventListener('input', function(e) {
+                const query = e.target.value.toLowerCase();
+                filteredLanguages = languages.filter(l => 
+                    l.id.toLowerCase().includes(query) ||
+                    l.aliases.some(a => a.toLowerCase().includes(query))
+                );
+                selectedIndex = 0;
+                renderLanguageList();
+            });
+            
+            document.getElementById('lang-search').addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    hideLanguageSelector();
+                    e.preventDefault();
+                } else if (e.key === 'ArrowDown') {
+                    selectedIndex = Math.min(selectedIndex + 1, filteredLanguages.length - 1);
+                    renderLanguageList();
+                    e.preventDefault();
+                } else if (e.key === 'ArrowUp') {
+                    selectedIndex = Math.max(selectedIndex - 1, 0);
+                    renderLanguageList();
+                    e.preventDefault();
+                } else if (e.key === 'Enter') {
+                    if (filteredLanguages[selectedIndex]) {
+                        selectLanguage(filteredLanguages[selectedIndex].id);
+                    }
+                    e.preventDefault();
+                }
+            });
+
+            // Save on change
+            editor.onDidChangeModelContent(() => {
+                const text = editor.getValue();
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.saveText) {
+                    window.webkit.messageHandlers.saveText.postMessage(text);
+                }
+            });
+
+            // Focus editor on click/load
+            editor.focus();
+
+            // Try to force focus
+            document.addEventListener('click', (e) => {
+                if (!document.getElementById('lang-selector').contains(e.target)) {
+                    editor.focus();
+                }
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <div id="container"></div>
+    <div id="lang-selector">
+        <input type="text" id="lang-search" placeholder="Search language..." autocomplete="off" />
+        <ul id="lang-list"></ul>
+    </div>
+</body>
+
+</html>
