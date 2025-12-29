@@ -1,3 +1,4 @@
 .build/
 .swiftpm/
 Sources/PopupEditor/Version.swift
+debug.log
