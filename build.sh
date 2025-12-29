@@ -32,7 +32,11 @@ EOF
 echo "    Version: $COMMIT_HASH ($BUILD_DATE)"
 
 echo "==> Building release..."
-swift build -c release
+if ! swift build -c release; then
+    echo "Build failed, clearing cache and retrying..."
+    rm -rf .build
+    swift build -c release
+fi
 
 echo "==> Creating app bundle..."
 
@@ -46,9 +50,9 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 # Copy executable
 cp "$BUILD_DIR/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/"
 
-# Copy resources
+# Copy resource bundle (Bundle.module looks for the .bundle next to the executable)
 if [ -d "$BUILD_DIR/${APP_NAME}_${APP_NAME}.bundle" ]; then
-    cp -R "$BUILD_DIR/${APP_NAME}_${APP_NAME}.bundle/"* "$APP_BUNDLE/Contents/Resources/"
+    cp -R "$BUILD_DIR/${APP_NAME}_${APP_NAME}.bundle" "$APP_BUNDLE/Contents/MacOS/"
 fi
 
 # Create Info.plist
