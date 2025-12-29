@@ -18,7 +18,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     var eventMonitor: Any?
     var statusItem: NSStatusItem?
     var previousApp: NSRunningApplication?
-    var resignCloseWorkItem: DispatchWorkItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupEditMenu()
@@ -144,26 +143,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNa
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        // Cancel any existing scheduled close
-        resignCloseWorkItem?.cancel()
-        
-        // Schedule a delayed close - allows temporary overlays (like Alfred, clipboard managers)
-        // to appear without immediately closing the popup editor
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self = self else { return }
-            // Only close if the window is still not key
-            if !self.window.isKeyWindow {
-                self.window.orderOut(nil)
-            }
-        }
-        resignCloseWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
-    }
-    
-    func windowDidBecomeKey(_ notification: Notification) {
-        // Cancel any pending close when window regains focus
-        resignCloseWorkItem?.cancel()
-        resignCloseWorkItem = nil
+        // Close window when it loses focus
+        window.orderOut(nil)
     }
 
     func setupEventMonitor() {
